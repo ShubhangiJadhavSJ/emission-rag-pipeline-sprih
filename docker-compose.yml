@@ -1,0 +1,108 @@
+services:
+  # ---------------------------------------------------------------------------
+  # MariaDB — relational store for documents, traces, evaluations, experiments.
+  # ---------------------------------------------------------------------------
+  mariadb:
+    image: mariadb:11.4
+    restart: unless-stopped
+    # Trim memory so the backend has more headroom on an 8GB machine.
+    command:
+      - "--innodb-buffer-pool-size=64M"
+      - "--performance-schema=OFF"
+      - "--max-connections=30"
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpass}
+      MARIADB_DATABASE: ${DB_NAME:-emissions}
+      MARIADB_USER: ${DB_USER:-emissions}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-emissions}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ---------------------------------------------------------------------------
+  # Qdrant — vector store for chunk embeddings.
+  # ---------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  # ---------------------------------------------------------------------------
+  # FastAPI backend — ingestion + RAG extraction + evaluation API.
+  # Tables are created and ground truth seeded automatically on startup.
+  # ---------------------------------------------------------------------------
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    environment:
+      # --- DB ---
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-emissions}
+      DB_USER: ${DB_USER:-emissions}
+      DB_PASSWORD: ${DB_PASSWORD:-emissions}
+      # --- Qdrant ---
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      # --- LLM / tracing (from .env) ---
+      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-4-8}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-https://cloud.langfuse.com}
+      # --- App ---
+      BLOB_STORAGE_DIR: /data/blobs
+      GROUND_TRUTH_PATH: /data/ground_truth/ground_truth.json
+      DEFAULT_PROMPT_VERSION: ${DEFAULT_PROMPT_VERSION:-v3}
+      # Embedding threads: 4 keeps large reports fast without much extra memory.
+      OMP_NUM_THREADS: "4"
+      TOKENIZERS_PARALLELISM: "false"
+      # Persist the downloaded embedding model so it isn't re-fetched/reloaded
+      # (and re-spiking memory) on every restart.
+      FASTEMBED_CACHE_PATH: /data/model_cache
+      HF_HOME: /data/model_cache
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./data:/data
+      - blob_data:/data/blobs
+      - model_cache:/data/model_cache
+
+  # ---------------------------------------------------------------------------
+  # Streamlit frontend — the emissions table + upload flow.
+  # ---------------------------------------------------------------------------
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "${FRONTEND_PORT:-8501}:8501"
+
+volumes:
+  mariadb_data:
+  qdrant_data:
+  blob_data:
+  model_cache:

@@ -1,0 +1,62 @@
+{
+  "2024-2025.pdf": {
+    "reporting_year": "2025",
+    "scope1": {"value": "35,111,952", "unit": "tCO2e"},
+    "scope2": {"value": "188,955", "unit": "tCO2e"},
+    "scope3": {"value": "7,391,574", "unit": "tCO2e"}
+  },
+  "2024-Hertz-Sustainability-and-Impact-Report.pdf": {
+    "reporting_year": "2024",
+    "scope1": {"value": "3,527,153", "unit": "MTCO2e"},
+    "scope2": {"value": "165,168", "unit": "MTCO2e"},
+    "scope3": {"value": "22,529,796", "unit": "MTCO2e"}
+  },
+  "2024-Sustainability-Performance-Report.pdf": {
+    "reporting_year": "2025",
+    "scope1": {"value": "330,897", "unit": "MTCO2e"},
+    "scope2": {"value": "323,438", "unit": "MTCO2e"},
+    "scope3": {"value": "29,806,002", "unit": "MTCO2e"}
+  },
+  "2024-sustainable-development-report.pdf": {
+    "reporting_year": "2024",
+    "scope1": {"value": "16,470,000", "unit": "CO2e"},
+    "scope2": {"value": "20,943,000", "unit": "CO2e"},
+    "scope3": {"value": "24,366,533", "unit": "CO2e"}
+  },
+  "698417_TSMC.pdf": {
+    "reporting_year": "2022",
+    "scope1": {"value": "2,018,789", "unit": "tCO2e"},
+    "scope2": {"value": "9,539,765", "unit": "tCO2e"},
+    "scope3": {"value": "7,502,136", "unit": "tCO2e"}
+  },
+  "ALVEST-Annual-ESG-Report_compressed.pdf": {
+    "reporting_year": "2024",
+    "scope1": {"value": "1,549", "unit": "tCO2e"},
+    "scope2": {"value": "1,101", "unit": "tCO2e"},
+    "scope3": {"value": "2,117,760", "unit": "tCO2e"}
+  },
+  "Greenbrier_ESG23.pdf": {
+    "reporting_year": "2023",
+    "scope1": {"value": "59,176", "unit": "tCO2e"},
+    "scope2": {"value": "87,303", "unit": "tCO2e"},
+    "scope3": {"value": "NA", "unit": "NA"}
+  },
+  "IAI_Sustainability_Report_A4_English_2024_M.pdf": {
+    "reporting_year": "2024",
+    "scope1": {"value": "20,735", "unit": "tCO2e"},
+    "scope2": {"value": "103,037", "unit": "tCO2e"},
+    "scope3": {"value": "18,829", "unit": "tCO2e"}
+  },
+  "aYw4vN0YXLCxVrIT_2025ForwardAirSustainabilityReport.pdf": {
+    "reporting_year": "2024",
+    "scope1": {"value": "67,762", "unit": "MTCO2e"},
+    "scope2": {"value": "24,192", "unit": "MTCO2e"},
+    "scope3": {"value": "1,392,137", "unit": "MTCO2e"}
+  },
+  "en_sustainability2025.pdf": {
+    "reporting_year": "2024",
+    "scope1": {"value": "390,000", "unit": "tCO2e"},
+    "scope2": {"value": "210,000", "unit": "tCO2e"},
+    "scope3": {"value": "205,820,000", "unit": "tCO2e"}
+  }
+}
