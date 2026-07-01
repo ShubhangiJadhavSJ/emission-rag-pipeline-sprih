@@ -5,10 +5,6 @@ sustainability report PDFs, shows them in a table, traces every extraction run,
 persists everything to a database, and lets you design metrics and iterate the
 RAG pipeline across experiments with a trend report.
 
-> The focus is end-to-end system design and evaluation discipline. Extraction
-> accuracy on any one report matters less than how the system is structured and
-> how it is measured and improved.
-
 ---
 
 ## 1. Run it (two steps)
@@ -19,14 +15,12 @@ RAG pipeline across experiments with a trend report.
 ```bash
 # 1) configure
 cp .env.example .env
-#    then edit .env and set ANTHROPIC_API_KEY=...   (or switch LLM_PROVIDER=openai)
+#    then edit .env and set GROQ_API_KEY=...   
 
 # 2) bring up the whole stack
 docker compose up --build
 ```
 
-That's it. On startup the backend **auto-creates all database tables and seeds
-nothing-by-hand** — there is no manual migration or DB setup step.
 
 | Service     | URL                              | What                         |
 |-------------|----------------------------------|------------------------------|
@@ -96,22 +90,7 @@ The upload returns immediately; the frontend polls until the row leaves
 
 ---
 
-## 3. Edge cases handled
-
-| Case (from the brief)                    | How it's handled                                                                 |
-|------------------------------------------|----------------------------------------------------------------------------------|
-| Clean text PDF with a clear table        | `pdfplumber` text + flattened table rows feed retrieval.                          |
-| **Scope 3 missing → NA**                 | Prompt rules force `NA`; parser defaults absent fields to NA; metric tracks it.   |
-| **Multi-year tables → current year**     | Prompt v3 rule + few-shot to pick the current reporting year; `reporting_year` scored.|
-| Fully-empty / unsupported report → NA    | All fields default to NA; row still renders (never blank/crash).                  |
-| Scanned / image PDF                      | Per-page **OCR fallback** via Tesseract + pdf2image when the text layer is thin.  |
-| Scope 2 market vs location ambiguity     | Prompt v3 prefers market-based.                                                   |
-| LLM returns prose / malformed JSON       | Robust regex+JSON parse degrades to all-NA instead of crashing.                   |
-| Pipeline exception                       | Caught; row marked `error` with message; trace records the failure.               |
-
----
-
-## 4. Observability — one trace per upload
+## 3. Observability — one trace per upload
 
 Every upload writes exactly one row to the `traces` table containing: retrieval
 queries, retrieved chunks (with scores), the exact prompt, model, input/output
@@ -119,16 +98,10 @@ tokens, **estimated USD cost**, latency, OCR-used flag, raw model output, parsed
 output, and status/error. This is viewable in the **Traces** tab — enough to
 debug a failed extraction without re-running it.
 
-Traces are **always** stored in MariaDB (zero external setup). If
-`LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` are set, each trace is also
-mirrored to Langfuse, tagged with its experiment. See *Stack rationale* for why
-tracing is DB-first.
-
 ---
 
 ## 5. Evaluation design
 
-> *This is candidate-designed — there is no prescribed metric.* Full reasoning
 > lives in code (`backend/app/eval/metrics.py`) and is summarised here.
 
 **Ground truth** is a hand-labelled JSON answer key
@@ -172,76 +145,3 @@ these runs; see **[data/reports/trend_report.md](data/reports/trend_report.md)**
 for the template/example.
 
 ---
-
-## 7. Stack rationale
-
-Required components are kept; a few non-required ones are swapped with
-justification (the brief allows this):
-
-- **Backend: FastAPI** — required.
-- **Frontend: Streamlit** — fastest way to ship the exact reference table +
-  upload flow + trace/eval/trend views in pure Python; no separate Node build.
-- **Vector DB: Qdrant** — preferred stack; one chunk collection scoped by
-  `document_id` so reports never cross-contaminate.
-- **Database: MariaDB** — preferred stack; holds documents, traces, evaluations,
-  experiments.
-- **Embeddings: local `fastembed` (bge-small-en-v1.5)** *(swap, justified)* —
-  avoids a second API key and keeps embeddings deterministic/reproducible and
-  free, which matters for re-running experiments. Swappable for OpenAI
-  embeddings by changing the embedder.
-- **LLM: Anthropic (default), OpenAI optional** — provider-agnostic behind
-  `llm/client.py`; switch with `LLM_PROVIDER`. Only the extraction step uses the
-  LLM, and it's instructed to return `NA` rather than hallucinate.
-- **Tracing: DB-first, Langfuse optional** *(swap, justified)* — self-hosting
-  Langfuse pulls in ClickHouse/Redis/Postgres and would make `docker compose up`
-  heavy and account-gated. To keep the app **reproducible in two steps**, the
-  full trace is stored in MariaDB and shown in the UI out of the box; Langfuse
-  is enabled automatically if you provide cloud keys.
-- **OCR: Tesseract + poppler** — preferred stack; per-page fallback for scanned
-  PDFs.
-
----
-
-## 8. Repo layout
-
-```
-.
-├── docker-compose.yml          # full stack: app + frontend + MariaDB + Qdrant
-├── .env.example                # all required variables
-├── README.md                   # this file
-├── PROMPT_ITERATION.md         # prompt evolution narrative
-├── backend/
-│   ├── Dockerfile  requirements.txt
-│   └── app/
-│       ├── main.py config.py schemas.py
-│       ├── db/        # models, session, auto-init/seed
-│       ├── storage/   # local blob storage
-│       ├── ingestion/ # pdf_extract (OCR fallback), chunker, embedder
-│       ├── vectorstore/ qdrant_store.py
-│       ├── llm/       # provider-agnostic client + cost
-│       ├── rag/       # prompts (v1-v3), extractor, pipeline
-│       ├── tracing/   # tracer (DB + optional Langfuse)
-│       └── eval/      # normalize, metrics, evaluate, experiments
-├── frontend/
-│   ├── Dockerfile  requirements.txt  streamlit_app.py
-└── data/
-    ├── pdfs/                   # put provided PDFs here (for experiments)
-    ├── ground_truth/           # ground_truth.json + labelling protocol
-    └── reports/                # generated trend report (md/json/png)
-```
-
----
-
-## 9. Deliverables checklist (from the brief)
-
-- [x] Modular, documented source with clear separation (API/DB/vector/storage/eval/prompts)
-- [x] `docker-compose.yml` bringing up the full stack
-- [x] `.env.example` listing all required variables
-- [x] README: setup, keys, run instructions, stack rationale
-- [x] Ground-truth labels + labelling protocol included
-- [x] Evaluation code + outputs (trend report)
-- [x] Prompt-iteration documentation (`PROMPT_ITERATION.md`)
-- [x] Trend report across ≥3 experiments
-- [ ] Provided PDFs — **add the 8–10 PDFs you were given to `data/pdfs/`**
-- [ ] Short demo (Loom / screenshots) — record after first run
-```
